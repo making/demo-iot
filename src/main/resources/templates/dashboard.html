@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Device Dashboard</title>
+    <style>
+        body {
+            background-color: snow;
+        }
+
+        table, td, th {
+            border-collapse: collapse;
+            border: 1px solid #999;
+        }
+    </style>
+</head>
+<body>
+<h3>Device Dashboard</h3>
+<div id="chart"></div>
+<table id="table">
+</table>
+<button id="clear">Clear</button>
+<br>
+<br>
+<a href="device.html" target="_blank">Device Emulator</a>
+</body>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script>
+    if (typeof EventSource === "undefined") {
+        alert("Your browser does not support Server-Sent Event!");
+    } else {
+        google.charts.load('current', {packages: ['corechart', 'line']});
+        google.charts.setOnLoadCallback(drawChart);
+
+
+        function drawChart() {
+            var dataTable = new google.visualization.DataTable();
+            dataTable.addColumn('datetime', 'Time');
+            for (var i = 1; i <= 100; i++) {
+                dataTable.addColumn('number', 'Device(' + i + ')');
+            }
+            var options = {
+                title: 'Power',
+                width: 800,
+                height: 400,
+                legend: {position: 'none'},
+                hAxis: {
+                    format: 'HH:mm:ss',
+                    gridlines: {count: 8}
+                },
+                vAxis: {
+                    gridlines: {color: 'none'},
+                    minValue: 0
+                }
+            };
+            var chart = new google.visualization.LineChart(document.getElementById('chart'));
+            chart.draw(dataTable, options);
+
+            var eventSource = new EventSource('/device');
+            var table = document.getElementById('table');
+            var colors = Array.apply(null, new Array(101)).map(function () {
+                return 'white'
+            });
+
+            eventSource.onmessage = function (e) {
+                var data = JSON.parse(e.data);
+                var html = '<table>';
+                for (var row = 1; row <= 10; row++) {
+                    html = html + '<tr>';
+                    for (var col = 1; col <= 10; col++) {
+                        var n = col + 10 * (row - 1);
+                        if (data[n]) {
+                            var power = data[n].power;
+                            var face = getFace(power);
+                            html = html + '<td style="background-color: ' + data[n].color + ';width: 96px;height: 48px;">' + face + ' ' + power.toFixed(2) + '</td>';
+                        } else {
+                            html = html + '<td style="width: 96px;height: 48px;">' + n + '</td>';
+                        }
+                    }
+                    html = html + '</tr>';
+                }
+                html = html + '</table>';
+                table.innerHTML = html;
+
+                var r = Array.apply(null, new Array(101)).map(function () {
+                    return 0
+                });
+                r[0] = new Date();
+                for (var k in data) {
+                    if (data.hasOwnProperty(k)) {
+                        r[k] = data[k].power;
+                        colors[k - 1] = data[k].color;
+                    }
+                }
+                options.colors = colors;
+                dataTable.addRow(r);
+                var d = new Date();
+                d.setMinutes(d.getMinutes() - 1);
+                if (dataTable.getNumberOfRows() >= 60) {
+                    dataTable.removeRow(0);
+                }
+                chart.draw(dataTable, options);
+            };
+        }
+
+        var clear = document.getElementById('clear');
+        clear.onclick = function (e) {
+            e.preventDefault();
+            var r = new XMLHttpRequest();
+            r.open("POST", "/clear", true);
+            r.send();
+        };
+    }
+
+    function getFace(power) {
+        var face = '';
+        if (90 <= power) {
+            face = '😍';
+        }
+        else if (80 <= power && power < 90) {
+            face = '😊';
+        }
+        else if (60 <= power && power < 80) {
+            face = '😆';
+        }
+        else if (40 <= power && power < 60) {
+            face = '😀';
+        }
+        else if (20 <= power && power < 40) {
+            face = '🙂';
+        }
+        else if (10 <= power && power < 20) {
+            face = '😑';
+        }
+        else if (1 <= power && power < 10) {
+            face = '😨';
+        }
+        else if (power < 1) {
+            face = '😱';
+        }
+        face = '<span style="font-size: xx-large;">' + face + '</span>';
+        return face;
+    }
+</script>
+</html>

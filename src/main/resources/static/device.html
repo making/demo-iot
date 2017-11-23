@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Device Emulator</title>
+    <style>
+        body {
+            background-color: snow;
+        }
+    </style>
+</head>
+<body>
+<h3>Device Emulator</h3>
+<div>Device ID: <span id="id"></span></div>
+<div>Device Color: <span id="color">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+<div id="power"></div>
+<button id="add">Add power</button>
+<br>
+<br>
+<a href="dashboard" target="_blank">Device Dashboard</a>
+</body>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script>
+    if (typeof EventSource === "undefined") {
+        alert("Your browser does not support Server-Sent Event!");
+    } else {
+        var id = document.getElementById('id');
+        var power = document.getElementById('power');
+        var color = document.getElementById('color');
+        var currentPower = 40;
+        var eventSource = new EventSource('/heartbeat');
+        eventSource.onmessage = function (e) {
+            var device = JSON.parse(e.data);
+            id.innerText = device.id;
+            color.style.backgroundColor = device.color;
+        };
+
+        window.onbeforeunload = function (e) {
+            eventSource.close();
+        };
+
+        var drawChart = function () {
+            var chartData = google.visualization.arrayToDataTable([
+                ['Label', 'Value'],
+                ['Power', currentPower]
+            ]);
+
+            var options = {
+                width: 600, height: 180,
+                redFrom: 0, redTo: 10,
+                yellowFrom: 10, yellowTo: 30,
+                minorTicks: 5
+            };
+
+            var chart = new google.visualization.Gauge(power);
+            chart.draw(chartData, options);
+
+            var start = new Date().getTime();
+
+            setInterval(function () {
+                var p = currentPower;
+                chartData.setValue(0, 1, p.toFixed(2));
+                chart.draw(chartData, options);
+
+                if (id.innerText) {
+                    var r = new XMLHttpRequest();
+                    r.open("POST", "/device", true);
+                    r.setRequestHeader('Content-Type', 'application/json');
+                    var data = {
+                        id: parseInt(id.innerText, 10),
+                        power: p,
+                        color: color.style.backgroundColor
+                    };
+                    r.send(JSON.stringify(data));
+                }
+                var time = (new Date().getTime() - start) / 1000.0;
+                var x = Math.log(time) / Math.log(10);
+                currentPower = Math.max(currentPower - Math.random() * x, 0) + Math.random() * 0.5;
+            }, 1000);
+
+            var add = document.getElementById('add');
+            add.onclick = function (e) {
+                e.preventDefault();
+                currentPower = Math.min(99.99, currentPower + Math.random() * 2);
+                chartData.setValue(0, 1, currentPower.toFixed(2));
+                chart.draw(chartData, options);
+            };
+        };
+
+        google.charts.load('current', {'packages': ['gauge']});
+        google.charts.setOnLoadCallback(drawChart);
+    }
+</script>
+</html>

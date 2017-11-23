@@ -1,0 +1,9 @@
+---
+applications:
+- name: demo-iot
+  memory: 256m
+  instances: 1
+  path: target/demo-iot-0.0.1-SNAPSHOT.jar
+  env:
+    JAVA_OPTS: '-XX:ReservedCodeCacheSize=32M -XX:MaxDirectMemorySize=32M -XX:+PrintGCDateStamps -XX:+PrintGCDetails'
+    JBP_CONFIG_OPEN_JDK_JRE: '[memory_calculator: {stack_threads: 24}]'
